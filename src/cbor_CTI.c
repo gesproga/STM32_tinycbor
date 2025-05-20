@@ -15,8 +15,13 @@
 /*VARIABLES*********************************************************************************************/ 
 
 struct {
-	CborEncoder *encoder;
-	CborEncoder *map;
+//	CborEncoder *encoder;
+//	CborEncoder *map;
+
+
+//	CborParser parser;
+//	CborValue it;
+
 }VA_cbor_CTI;
 
 
@@ -30,15 +35,14 @@ struct {
 CborError  cbor_CTI_init_encabezado_encode(
 		uint8_t *buffer_montar, size_t size,
 		CborEncoder* encoder,
-	    CborEncoder* out_map,
+	    CborEncoder* datos,
 	    uint64_t tag,
 		const char* accion,
 	    int id)
 {
 	CborError err;
 
-	VA_cbor_CTI.encoder=encoder;
-	VA_cbor_CTI.map=out_map;
+
 	cbor_encoder_init(encoder, buffer_montar, size, 0);
 
 	 // Codificar tag
@@ -46,24 +50,24 @@ CborError  cbor_CTI_init_encabezado_encode(
 	if (err != CborNoError) return err;
 
 	// Crear mapa raíz con 3 entradas ("accion", "ID", "datos")
-	err = cbor_encoder_create_map(encoder, out_map, 3);  // 3 claves esperadas
+	err = cbor_encoder_create_map(encoder, datos, 3);  // 3 claves esperadas
 	if (err != CborNoError) return err;
 
 	 // "accion": "R" (por ejemplo)
-	err = cbor_encode_text_stringz(out_map, "AC");
+	err = cbor_encode_text_stringz(datos, "AC");
 	if (err != CborNoError) return err;
-	err = cbor_encode_text_stringz(out_map, accion);
+	err = cbor_encode_text_stringz(datos, accion);
 	if (err != CborNoError) return err;
 
 
 	// "ID": 42 (por ejemplo)
-	err = cbor_encode_text_stringz(out_map, "ID");
+	err = cbor_encode_text_stringz(datos, "ID");
 	if (err != CborNoError) return err;
-	err = cbor_encode_int(out_map, id);
+	err = cbor_encode_int(datos, id);
 	if (err != CborNoError) return err;
 
 	//"datos" → nombre clave, pero no se cierra el mapa interior aquí
-	err = cbor_encode_text_stringz(out_map, "datos");
+	err = cbor_encode_text_stringz(datos, "datos");
 
 
 
@@ -71,9 +75,9 @@ CborError  cbor_CTI_init_encabezado_encode(
 }
 
 
-CborError  cbor_CTI_fin_encabezado_encode(void)
+CborError  cbor_CTI_fin_encabezado_encode(CborEncoder* encoder,CborEncoder* datos)
 {
-	return cbor_encoder_close_container(VA_cbor_CTI.encoder, VA_cbor_CTI.map);
+	return cbor_encoder_close_container(encoder, datos);
 }
 
 
@@ -81,39 +85,42 @@ CborError  cbor_CTI_fin_encabezado_encode(void)
 
 CborError  cbor_CTI_init_encabezado_decode(
 		uint8_t *buffer_rx,size_t size,
-		const char* accion,uint8_t accion_len,
+		CborParser *parser,	CborValue *decoder,	CborValue *map_datos,
+		CborTag *tag,
+		char* accion,size_t *accion_len,
 	    int *id)
 {
 
-	CborParser parser;
-	CborValue it, map, datos, rel_array, rel_item;
-	CborError err = cbor_parser_init(buffer_rx, size, 0, &parser, &it);
+	//CborValue it;
 
+	CborError err = cbor_parser_init(buffer_rx, size, 0, parser, decoder);
 
 	// Leer tag
-	if (cbor_value_is_tag(&it)) {
-		CborTag tag;
-		err |= cbor_value_get_tag(&it, tag);
-		err |= cbor_value_advance(&it);
+	if (cbor_value_is_tag(decoder)) {
+		err |= cbor_value_get_tag(decoder, tag);
+		err |= cbor_value_advance(decoder);
 	}
 
-
 	// Entrar al mapa raíz
-	err |= cbor_value_enter_container(&it, &map);
+	err |= cbor_value_enter_container(decoder, map_datos);
 
 
 	// Leer "AC"
-	err |= cbor_value_advance(&map); // clave "AC"
-	err |= cbor_value_copy_text_string(&map, accion, &accion_len, &map);
+	err |= cbor_value_advance(map_datos); // clave "AC"
+	err |= cbor_value_copy_text_string(map_datos, accion, accion_len, map_datos);
 
 
 	// Leer "ID"
-	err |= cbor_value_advance(&map); // clave "ID"
-	err |= cbor_value_get_int(&map, id);
-	err |= cbor_value_advance(&map);
+	err |= cbor_value_advance(map_datos); // clave "ID"
+	err |= cbor_value_get_int(map_datos, id);
+	err |= cbor_value_advance(map_datos);
 
 
+	 // Leer clave "datos"
+	 err |= cbor_value_advance(map_datos); // clave "datos"
 
+
+	return err;  //
 
 }
 

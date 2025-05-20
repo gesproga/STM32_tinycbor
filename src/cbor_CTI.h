@@ -1,5 +1,5 @@
-#ifndef __APLI_LIB__
-#define __APLI_LIB__
+#ifndef __CBOR_CTI__
+#define __CBOR_CTI__
 
 /*
  *
@@ -21,9 +21,9 @@
 
 #define DEF_CBOR_ACCION_READ "R"	//peticion de lectura
 #define DEF_CBOR_ACCION_WRITE "W"	//envia datos escritura
-#define DEF_CBOR_ACCION_RESPUESTA_READ "L"	//respuesta lectura escritura
-#define DEF_CBOR_ACCION_WRITE "A"	//respuesta ACK
-
+#define DEF_CBOR_ACCION_RT_READ "RES"	//respuesta lectura escritura
+#define DEF_CBOR_ACCION_RT_WRITE "ACK"	//respuesta ACK
+#define DEF_CBOR_ACCION_RT_ERROR "E"	//respuesta ERROR
 
 
 //typedef struct{
@@ -105,7 +105,8 @@ CborError  cbor_CTI_init_encabezado_encode(
 
 
 //se llama cuando termina de escribir los datos
-CborError  cbor_CTI_fin_encabezado_encode(void);
+CborError  cbor_CTI_fin_encabezado_encode(CborEncoder* encoder,CborEncoder* datos);
+
 
 
 
@@ -117,7 +118,9 @@ CborError  cbor_CTI_fin_encabezado_encode(void);
 
 CborError  cbor_CTI_init_encabezado_decode(
 		uint8_t *buffer_rx,size_t size,
-		const char* accion,uint8_t accion_len,
+		CborParser *parser,	CborValue *decoder,	CborValue *map_datos,
+		CborTag *tag,
+		char* accion,size_t *accion_len,
 	    int *id);
 /********************************************************
 //FUNCIONES salida
