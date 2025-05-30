@@ -116,9 +116,21 @@ CborError  cbor_CTI_init_encabezado_decode(
 	err |= cbor_value_advance(map_datos);
 
 
-	 // Leer clave "datos"
-	 err |= cbor_value_advance(map_datos); // clave "datos"
 
+	if (!cbor_value_at_end(map_datos))
+	{
+		if (cbor_value_is_text_string(map_datos)) {
+			char clave[16];
+			size_t clave_len = sizeof(clave);
+			CborValue temp = *map_datos;
+
+			if (cbor_value_copy_text_string(&temp, clave, &clave_len, NULL) == CborNoError &&
+				strcmp(clave, "datos") == 0) {
+				err |= cbor_value_advance(map_datos); // clave "datos"
+				// aquí el caller puede hacer enter_container(map_datos) si quiere
+			}
+		}
+	}
 
 	return err;  //
 
