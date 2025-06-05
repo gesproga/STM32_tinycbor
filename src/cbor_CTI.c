@@ -38,7 +38,8 @@ CborError  cbor_CTI_init_encabezado_encode(
 	    CborEncoder* datos,
 	    uint64_t tag,
 		const char* accion,
-	    int id)
+	    int id,
+		int dr)
 {
 	CborError err;
 
@@ -50,7 +51,7 @@ CborError  cbor_CTI_init_encabezado_encode(
 	if (err != CborNoError) return err;
 
 	// Crear mapa raíz con 3 entradas ("accion", "ID", "datos")
-	err = cbor_encoder_create_map(encoder, datos, 3);  // 3 claves esperadas
+	err = cbor_encoder_create_map(encoder, datos, 4);  // 3 claves esperadas
 	if (err != CborNoError) return err;
 
 	 // "accion": "R" (por ejemplo)
@@ -66,8 +67,15 @@ CborError  cbor_CTI_init_encabezado_encode(
 	err = cbor_encode_int(datos, id);
 	if (err != CborNoError) return err;
 
-	//"datos" → nombre clave, pero no se cierra el mapa interior aquí
-	err = cbor_encode_text_stringz(datos, "datos");
+
+	// "ID": 42 (por ejemplo)
+	err = cbor_encode_text_stringz(datos, "DR");
+	if (err != CborNoError) return err;
+	err = cbor_encode_int(datos, dr);
+	if (err != CborNoError) return err;
+
+
+
 
 
 
@@ -88,7 +96,8 @@ CborError  cbor_CTI_init_encabezado_decode(
 		CborParser *parser,	CborValue *decoder,	CborValue *map_datos,
 		CborTag *tag,
 		char* accion,size_t *accion_len,
-	    int *id)
+	    int *id,
+		int *dr)
 {
 
 	//CborValue it;
@@ -115,6 +124,11 @@ CborError  cbor_CTI_init_encabezado_decode(
 	err |= cbor_value_get_int(map_datos, id);
 	err |= cbor_value_advance(map_datos);
 
+
+	// Leer "DR"
+	err |= cbor_value_advance(map_datos); // clave "ID"
+	err |= cbor_value_get_int(map_datos, dr);
+	err |= cbor_value_advance(map_datos);
 
 
 	if (!cbor_value_at_end(map_datos))

@@ -97,10 +97,11 @@
 CborError  cbor_CTI_init_encabezado_encode(
 		uint8_t *buffer_montar, size_t size,
 		CborEncoder* encoder,
-	    CborEncoder* out_map,
+	    CborEncoder* datos,
 	    uint64_t tag,
 		const char* accion,
-	    int id);
+	    int id,
+		int dr);
 
 
 
@@ -121,7 +122,8 @@ CborError  cbor_CTI_init_encabezado_decode(
 		CborParser *parser,	CborValue *decoder,	CborValue *map_datos,
 		CborTag *tag,
 		char* accion,size_t *accion_len,
-	    int *id);
+	    int *id,
+		int *dr);
 /********************************************************
 //FUNCIONES salida
 *********************************************************/
