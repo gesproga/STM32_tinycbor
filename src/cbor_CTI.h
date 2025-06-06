@@ -17,14 +17,30 @@
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
+typedef enum{
+	CBOR_ACCION_NO_RECONOCIDA = 0,
+	CBOR_ACCION_READ,
+	CBOR_ACCION_WRITE,
+	CBOR_ACCION_WRITE_READ,
+	CBOR_ACCION_RT_READ,
+	CBOR_ACCION_RT_WRITE,
+	CBOR_ACCION_RT_ERROR,
 
+}EN_CBOR_ACCION;
 
-#define DEF_CBOR_ACCION_READ "R"	//peticion de lectura
-#define DEF_CBOR_ACCION_WRITE "W"	//envia datos escritura
+#define DEF_CBOR_ACCION_READ 	"R"	//peticion de lectura
+#define DEF_CBOR_ACCION_WRITE 	"W"	//envia datos escritura
 #define DEF_CBOR_ACCION_RT_READ "RES"	//respuesta lectura escritura
 #define DEF_CBOR_ACCION_RT_WRITE "ACK"	//respuesta ACK
 #define DEF_CBOR_ACCION_RT_ERROR "E"	//respuesta ERROR
+#define DEF_CBOR_ACCION_WRITE_READ "WR"	//respuesta ERROR
 
+
+
+#define DEF_CBOR_CLAVE_PRINCIPAL_STU 	"STU\0"
+#define DEF_CBOR_CLAVE_PRINCIPAL_CFG 	"CFG\0"
+#define DEF_CBOR_CLAVE_PRINCIPAL_EVT 	"EVT\0"
+#define DEF_CBOR_CLAVE_PRINCIPAL_ERR 	"ERR\0"
 
 //typedef struct{
 //
@@ -36,8 +52,55 @@
 //
 //}ST_apli_lib;
 
+#define DEF_CBOR_ACCION_RT_READ_LEN 5
+#define DEF_CBOR_ACCION_RT_WRITE_LEN 5
+
+typedef struct
+{
+	CborParser parser;
+	CborValue decoder_map;
+
+	CborTag tag;
+
+	EN_CBOR_ACCION accion_tipo;
+
+	int id;
+
+	int dr_array[DEF_CBOR_ACCION_RT_WRITE_LEN];
+	size_t dr_count;
+
+	CborValue map_CFG;
+	CborValue map_STU;
+	CborValue map_EVT;
+
+}ST_CBOR_tipo_rx_decoder;
 
 
+
+
+
+
+typedef struct
+{
+	CborEncoder encoder;
+	CborEncoder mapa_raiz;
+
+	CborTag tag;
+
+	EN_CBOR_ACCION accion_tipo;
+
+	int id;
+	int dr_array[DEF_CBOR_ACCION_RT_WRITE_LEN];
+	size_t dr_count;
+
+
+	 void (*fun_CFG)(CborEncoder *mapa_datos); // función para rellenar el mapa
+	 void (*fun_STU)(CborEncoder *mapa_datos); // función para rellenar el mapa
+	 void (*fun_EVT)(CborEncoder *mapa_datos); // función para rellenar el mapa
+	 void (*fun_ERR)(CborEncoder *mapa_datos); // función para rellenar el mapa
+
+
+}ST_CBOR_tipo_tx_encoder;
 
 //extern ST_apli_lib st_apli_lib;
 
@@ -63,67 +126,65 @@
 //FUNCIONES entrada
 *********************************************************/
 
-//ejemplo de uso
+//se le pasa toda la configuracion para montar la trama cbor
+//size_t *size en la variable se le psa el size maximo de buffer_montar y si la funion no retorna err
+//en size tendremos el size de la trama montada
+CborError  cbor_CTI_set_encabezado_encode(
+		uint8_t *buffer_montar, size_t *size,
+		ST_CBOR_tipo_tx_encoder *st_encoder);
 
-//1001({
-//  "accion": "R",
-//  "ID": 42,
-//  "datos": {
-//    "nombre": "Sensor A",
-//    "temperatura": 24.7
-//  }
-//})
 
-//uint8_t buffer[256];
-//CborEncoder encoder, root_map, datos_map;
+
+
 //
-//cbor_encoder_init(&encoder, buffer, sizeof(buffer), 0);
+//clave:
+//	#define DEF_CBOR_CLAVE_PRINCIPAL_STU 	"STU\0"
+//	#define DEF_CBOR_CLAVE_PRINCIPAL_CFG 	"CFG\0"
+//	#define DEF_CBOR_CLAVE_PRINCIPAL_EVT 	"EVT\0"
+//	#define DEF_CBOR_CLAVE_PRINCIPAL_ERR 	"ERR\0"
 //
-//// Crear encabezado con tag 1001, accion = "R", ID = 42
-//cbor_encode_encabezado_tag_accion_id(&encoder, &root_map, 1001, "R", 42);
+//void *function_datos(CborEncoder *mapa_datos) funcion que se llamara para rellenar los datos de la clave indicada
 
-//// Ahora puedes abrir el submapa "datos"
-//cbor_encoder_create_map(&root_map, &datos_map, 2);
+CborError  cbor_CTI_set_map_encoder(
+		char clave[],
+		ST_CBOR_tipo_tx_encoder *st_encoder,
+		void *function_datos(CborEncoder *mapa_datos));
+
+
+
+
+
+
+
+
+
+
+//typedef struct
+//{
+//	CborParser parser;
+//	CborValue decoder_map;
 //
-//cbor_encode_text_stringz(&datos_map, "nombre");
-//cbor_encode_text_stringz(&datos_map, "Sensor A");
 //
-//cbor_encode_text_stringz(&datos_map, "temperatura");
-//cbor_encode_float(&datos_map, 24.7f);
+//	CborTag tag;
 //
-//cbor_encoder_close_container(&root_map, &datos_map);  // cerrar "datos"
-//cbor_encoder_close_container(&encoder, &root_map);    // cerrar mapa raíz
-
-CborError  cbor_CTI_init_encabezado_encode(
-		uint8_t *buffer_montar, size_t size,
-		CborEncoder* encoder,
-	    CborEncoder* datos,
-	    uint64_t tag,
-		const char* accion,
-	    int id,
-		int dr);
-
-
-
-//se llama cuando termina de escribir los datos
-CborError  cbor_CTI_fin_encabezado_encode(CborEncoder* encoder,CborEncoder* datos);
-
-
-
-
-
-
-
-
-
-
-CborError  cbor_CTI_init_encabezado_decode(
+//	char accion[DEF_CBOR_ACCION_RT_READ_LEN];
+//	size_t accion_len;
+//
+//	int id;
+//
+//	int dr_array[DEF_CBOR_ACCION_RT_WRITE_LEN];
+//
+//	size_t dr_count;
+//
+//	CborValue map_CFG;
+//	CborValue map_STU;
+//	CborValue map_EVT;
+//
+//}ST_CBOR_tipo_rx_decoder;
+CborError  cbor_CTI_get_encabezado_decode(
 		uint8_t *buffer_rx,size_t size,
-		CborParser *parser,	CborValue *decoder,	CborValue *map_datos,
-		CborTag *tag,
-		char* accion,size_t *accion_len,
-	    int *id,
-		int *dr);
+		ST_CBOR_tipo_rx_decoder *parser_decoder
+);
 /********************************************************
 //FUNCIONES salida
 *********************************************************/
