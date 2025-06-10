@@ -31,21 +31,41 @@ struct {
 
 /**********************************************************************************************/
 
+CborError  cbor_CTI_set_init_array_encode(ST_CBOR_tipo_tx_encoder *st_encoder)
+{
+	CborError err=0;
+	cbor_encoder_init(&st_encoder->encoder, st_encoder->buffer_montar_rt, st_encoder->size_buffer_respuesta, 0);
+	// Crear mapa raíz
+	err |= cbor_encoder_create_array(&st_encoder->encoder, &st_encoder->array_raiz, CborIndefiniteLength);
+	return err;
+}
+
+
+CborError  cbor_CTI_set_fin_array_encode(ST_CBOR_tipo_tx_encoder *st_encoder)
+{
+	CborError err=0;
+	// Crear mapa raíz
+	err |= cbor_encoder_close_container(st_encoder->encoder, &st_encoder->array_raiz);
+	return err;
+}
+
+
+
 
 CborError  cbor_CTI_set_encabezado_encode(
-		uint8_t *buffer_montar, size_t *size,
+		//uint8_t *buffer_montar, size_t *size,
 		ST_CBOR_tipo_tx_encoder *st_encoder)
 {
-	CborError err;
+	CborError err=0;
 
-	cbor_encoder_init(&st_encoder->encoder, buffer_montar, size, 0);
+	//cbor_encoder_init(&st_encoder->encoder, buffer_montar, *size, 0);
 
 	 // Codificar tag
 	err = cbor_encode_tag(&st_encoder->encoder,st_encoder->tag);
 	if (err != CborNoError) return err;
 
 	// Crear mapa raíz con 3 entradas ("accion", "ID", "datos")
-	err = cbor_encoder_create_map(&st_encoder->encoder, &st_encoder->mapa_raiz, CborIndefiniteLength);  //
+	err = cbor_encoder_create_map(&st_encoder->array_raiz, &st_encoder->mapa_raiz, CborIndefiniteLength);  //
 	if (err != CborNoError) return err;
 
 	 // "accion": "R" (por ejemplo)
@@ -135,21 +155,19 @@ CborError  cbor_CTI_set_encabezado_encode(
 	}
 
 	// Cerrar el mapa raíz
-	err |= cbor_encoder_close_container(&st_encoder->encoder, &st_encoder->mapa_raiz);
+	err |= cbor_encoder_close_container(&st_encoder->array_raiz, &st_encoder->mapa_raiz);
 	if (err != CborNoError) return err;
 	// Finalizar la codificación
-	if (cbor_encoder_get_buffer_size(&st_encoder->encoder, buffer_montar)> size) {
-		return CborErrorOutOfMemory; // Buffer insuficiente
-	}
-
-	// Actualizar el tamaño del buffer montado
-	*size = cbor_encoder_get_buffer_size(&st_encoder->encoder, buffer_montar);
+//	if (cbor_encoder_get_buffer_size(&st_encoder->encoder, buffer_montar)> *size) {
+//		return CborErrorOutOfMemory; // Buffer insuficiente
+//	}
+//
+//	// Actualizar el tamaño del buffer montado
+//	*size = cbor_encoder_get_buffer_size(&st_encoder->encoder, buffer_montar);
 
 
 	return err;  // listo para crear submapa con datos después
 }
-
-
 
 
 
@@ -160,23 +178,46 @@ CborError  cbor_CTI_get_encabezado_decode(
 )
 {
 	//CborValue it;
-	char accion[DEF_CBOR_ACCION_RT_READ_LEN];
+	char accion[DEF_CBOR_ACCION_RT_READ_LEN]={0};
 	size_t accion_len;
+	CborError err;
+
+	//CborValue array_raiz;
 
 	CborValue map_datos;
 	CborValue dr_array_it;
 	uint8_t max_array=parser_decoder->dr_count;
 	parser_decoder->dr_count = 0;
-	CborError err = cbor_parser_init(buffer_rx, size, 0, &parser_decoder->parser, &parser_decoder->decoder_map);
+	if(parser_decoder->parser_iniciado==NO_c)
+	{
+		err = cbor_parser_init(buffer_rx, size, 0, &parser_decoder->parser, &parser_decoder->decoder_map);
+        parser_decoder->parser_iniciado=SI_c;
+
+        if (cbor_value_is_array(&parser_decoder->decoder_map)==0)
+		{
+			return CborErrorIllegalType; // No se esperaba un array aquí
+		}
+        err |= cbor_value_enter_container(&parser_decoder->decoder_map, &parser_decoder->array_raiz);
+	}
+	else {
+		if (cbor_value_at_end(&parser_decoder->array_raiz))
+		{
+			return CborErrorAdvancePastEOF;
+		}
+	}
 
 	// Leer tag
-	if (cbor_value_is_tag(&parser_decoder->decoder_map)) {
-		err |= cbor_value_get_tag(&parser_decoder->decoder_map, &parser_decoder->tag);
-		err |= cbor_value_advance(&parser_decoder->decoder_map);
+	if (cbor_value_is_tag(&parser_decoder->array_raiz)) {
+		err |= cbor_value_get_tag(&parser_decoder->array_raiz, &parser_decoder->tag);
+		err |= cbor_value_advance(&parser_decoder->array_raiz);
+	}
+	else
+	{
+		return CborErrorIllegalType; // No se encontró un tag válido
 	}
 
 	// Entrar al mapa raíz
-	err |= cbor_value_enter_container(&parser_decoder->decoder_map, &map_datos);
+	err |= cbor_value_enter_container(&parser_decoder->array_raiz, &map_datos);
 
 
 	// Leer "AC"
@@ -187,14 +228,15 @@ CborError  cbor_CTI_get_encabezado_decode(
 
 	//pasamos el tipo de acción a la estructura//////////////////////////////////////////////////////////////////////////
 
-	if (memcmp(accion, DEF_CBOR_ACCION_RT_READ, accion_len) == 0)
+	if (memcmp(accion, DEF_CBOR_ACCION_WRITE_READ, accion_len) == 0)
+		parser_decoder->accion_tipo = CBOR_ACCION_WRITE_READ; // acción válida para escribir
+
+	if (memcmp(accion, DEF_CBOR_ACCION_READ, accion_len) == 0)
 		parser_decoder->accion_tipo=CBOR_ACCION_READ; // acción no válida
 
 	if (memcmp(accion, DEF_CBOR_ACCION_WRITE, accion_len) == 0)
 		parser_decoder->accion_tipo = CBOR_ACCION_WRITE; // acción válida para escribir
 
-	if (memcmp(accion, DEF_CBOR_ACCION_WRITE_READ, accion_len) == 0)
-			parser_decoder->accion_tipo = CBOR_ACCION_WRITE_READ; // acción válida para escribir
 
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -263,7 +305,11 @@ CborError  cbor_CTI_get_encabezado_decode(
 	}
 
 
+	// 8. Salir del mapa raíz
+	//err = cbor_value_leave_container(&array_raiz, &map_datos);
+	err = cbor_value_advance(&parser_decoder->array_raiz);
 
+	if (err != CborNoError) return err;
 
 
 //

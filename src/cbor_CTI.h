@@ -59,6 +59,7 @@ typedef struct
 {
 	CborParser parser;
 	CborValue decoder_map;
+	CborValue array_raiz;
 
 	CborTag tag;
 
@@ -73,6 +74,9 @@ typedef struct
 	CborValue map_STU;
 	CborValue map_EVT;
 
+	CTI_SI_NO parser_iniciado; //indica si se ha iniciado el parser
+
+
 }ST_CBOR_tipo_rx_decoder;
 
 
@@ -82,7 +86,11 @@ typedef struct
 
 typedef struct
 {
+	uint8_t *buffer_montar_rt;
+	size_t size_buffer_respuesta;
+
 	CborEncoder encoder;
+	CborEncoder array_raiz;
 	CborEncoder mapa_raiz;
 
 	CborTag tag;
@@ -126,11 +134,19 @@ typedef struct
 //FUNCIONES entrada
 *********************************************************/
 
+
+
+CborError  cbor_CTI_set_init_array_encode(ST_CBOR_tipo_tx_encoder *st_encoder);
+
+
+CborError  cbor_CTI_set_fin_array_encode(ST_CBOR_tipo_tx_encoder *st_encoder);
+
+
 //se le pasa toda la configuracion para montar la trama cbor
 //size_t *size en la variable se le psa el size maximo de buffer_montar y si la funion no retorna err
 //en size tendremos el size de la trama montada
 CborError  cbor_CTI_set_encabezado_encode(
-		uint8_t *buffer_montar, size_t *size,
+		//uint8_t *buffer_montar, size_t *size,
 		ST_CBOR_tipo_tx_encoder *st_encoder);
 
 
