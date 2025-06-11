@@ -86,26 +86,30 @@ typedef struct
 
 typedef struct
 {
-	uint8_t *buffer_montar_rt;
-	size_t size_buffer_respuesta;
 
-	CborEncoder encoder;
-	CborEncoder array_raiz;
-	CborEncoder mapa_raiz;
-
-	CborTag tag;
-
-	EN_CBOR_ACCION accion_tipo;
-
-	int id;
-	int dr_array[DEF_CBOR_ACCION_RT_WRITE_LEN];
-	size_t dr_count;
-
-
+	//si configuramos estas funciones, las llamara cuando este montando la trama
 	 void (*fun_CFG)(CborEncoder *mapa_datos); // función para rellenar el mapa
 	 void (*fun_STU)(CborEncoder *mapa_datos); // función para rellenar el mapa
 	 void (*fun_EVT)(CborEncoder *mapa_datos); // función para rellenar el mapa
 	 void (*fun_ERR)(CborEncoder *mapa_datos); // función para rellenar el mapa
+
+
+	 //configuracion informacion respuesta
+	CborTag tag;
+	EN_CBOR_ACCION accion_tipo;
+	int id;
+	int dr_array[DEF_CBOR_ACCION_RT_WRITE_LEN];
+	size_t dr_count;
+
+	//encoder donde se monta la trama
+	CborEncoder encoder;
+	CborEncoder array_raiz;
+
+
+
+	//donde se monta buffer
+	uint8_t *buffer_montar_rt;
+	size_t size_max_buffer_montar_rt;
 
 
 }ST_CBOR_tipo_tx_encoder;
@@ -135,36 +139,34 @@ typedef struct
 *********************************************************/
 
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//funciones encoder
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-CborError  cbor_CTI_set_init_array_encode(ST_CBOR_tipo_tx_encoder *st_encoder);
-
-
-CborError  cbor_CTI_set_fin_array_encode(ST_CBOR_tipo_tx_encoder *st_encoder);
-
-
-//se le pasa toda la configuracion para montar la trama cbor
-//size_t *size en la variable se le psa el size maximo de buffer_montar y si la funion no retorna err
-//en size tendremos el size de la trama montada
-CborError  cbor_CTI_set_encabezado_encode(
-		//uint8_t *buffer_montar, size_t *size,
-		ST_CBOR_tipo_tx_encoder *st_encoder);
+//se tiene que llamar al principio para inicializar el encoder. esto crea un array de tag.
+//de esta forma podemos enviar diferentes tag en una misma trama
+CborError cbor_CTI_set_init_array_encode(ST_CBOR_tipo_tx_encoder *st_encoder,uint8_t *buffer_montar, size_t size_max_buffer_montar);
 
 
 
 
-//
-//clave:
-//	#define DEF_CBOR_CLAVE_PRINCIPAL_STU 	"STU\0"
-//	#define DEF_CBOR_CLAVE_PRINCIPAL_CFG 	"CFG\0"
-//	#define DEF_CBOR_CLAVE_PRINCIPAL_EVT 	"EVT\0"
-//	#define DEF_CBOR_CLAVE_PRINCIPAL_ERR 	"ERR\0"
-//
-//void *function_datos(CborEncoder *mapa_datos) funcion que se llamara para rellenar los datos de la clave indicada
+//se tiene que llamar al final cuando se ha finalizado el encoder.
+//esto finaliza el array de tag y retorna el tamaño del buffer montado
+CborError  cbor_CTI_set_fin_array_encode(ST_CBOR_tipo_tx_encoder *st_encoder,size_t *size_buffer_montar);
 
-CborError  cbor_CTI_set_map_encoder(
-		char clave[],
-		ST_CBOR_tipo_tx_encoder *st_encoder,
-		void *function_datos(CborEncoder *mapa_datos));
+
+
+//cada tag que queramos llamar dentro del encoder llamamos a cbor_CTI_set_encabezado_encode.
+//antes de llamar a esta funcion deberiamos crear st_encoder y iniciar las variables de configuracion que deseeemos
+//ejemplo:
+	//ST_CBOR_tipo_tx_encoder st_encoder = {0};
+	//st_encoder.tag = parser_decoder->tag;
+	//st_encoder.accion_tipo = CBOR_ACCION_RT_READ;
+	//st_encoder.id = parser_decoder->id;
+	//st_encoder.fun_STU=APIC_Placa_base_cbor_STU_encode;
+	//memcpy(&st_encoder.dr_array, &parser_decoder.dr_array, sizeof(st_encoder->dr_array));
+
+CborError  cbor_CTI_set_encabezado_encode(ST_CBOR_tipo_tx_encoder *st_encoder);
 
 
 
@@ -175,28 +177,14 @@ CborError  cbor_CTI_set_map_encoder(
 
 
 
-//typedef struct
-//{
-//	CborParser parser;
-//	CborValue decoder_map;
-//
-//
-//	CborTag tag;
-//
-//	char accion[DEF_CBOR_ACCION_RT_READ_LEN];
-//	size_t accion_len;
-//
-//	int id;
-//
-//	int dr_array[DEF_CBOR_ACCION_RT_WRITE_LEN];
-//
-//	size_t dr_count;
-//
-//	CborValue map_CFG;
-//	CborValue map_STU;
-//	CborValue map_EVT;
-//
-//}ST_CBOR_tipo_rx_decoder;
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//se llama cuando tengamos informacion CBOR que decodificar.
+//importante iniciar parser decoder ST_CBOR_tipo_rx_decoder parser_decoder={0};
+//como se pueden enviar múltiples tag dentro de una trama, se puede llamar varias veces a esta función hasta que se hayan decodificado todos los tag.
+//retorna CborErrorAdvancePastEOF si no hay mas datos que leer
+//toda la informacion decodificada se guarda en parser_decoder.
 CborError  cbor_CTI_get_encabezado_decode(
 		uint8_t *buffer_rx,size_t size,
 		ST_CBOR_tipo_rx_decoder *parser_decoder

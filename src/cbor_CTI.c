@@ -31,21 +31,35 @@ struct {
 
 /**********************************************************************************************/
 
-CborError  cbor_CTI_set_init_array_encode(ST_CBOR_tipo_tx_encoder *st_encoder)
+CborError  cbor_CTI_set_init_array_encode(ST_CBOR_tipo_tx_encoder *st_encoder,uint8_t *buffer_montar, size_t size_max_buffer_montar)
 {
 	CborError err=0;
-	cbor_encoder_init(&st_encoder->encoder, st_encoder->buffer_montar_rt, st_encoder->size_buffer_respuesta, 0);
+
+	st_encoder->buffer_montar_rt=buffer_montar;
+	st_encoder->size_max_buffer_montar_rt=size_max_buffer_montar;
+
+	cbor_encoder_init(&st_encoder->encoder, st_encoder->buffer_montar_rt, st_encoder->size_max_buffer_montar_rt, 0);
 	// Crear mapa raíz
 	err |= cbor_encoder_create_array(&st_encoder->encoder, &st_encoder->array_raiz, CborIndefiniteLength);
 	return err;
 }
 
 
-CborError  cbor_CTI_set_fin_array_encode(ST_CBOR_tipo_tx_encoder *st_encoder)
+CborError  cbor_CTI_set_fin_array_encode(ST_CBOR_tipo_tx_encoder *st_encoder,size_t *size_buffer_montar)
 {
 	CborError err=0;
 	// Crear mapa raíz
-	err |= cbor_encoder_close_container(st_encoder->encoder, &st_encoder->array_raiz);
+	err |= cbor_encoder_close_container(&st_encoder->encoder, &st_encoder->array_raiz);
+
+
+	if (cbor_encoder_get_buffer_size(&st_encoder->encoder, st_encoder->buffer_montar_rt)> st_encoder->size_max_buffer_montar_rt) {
+		return CborErrorOutOfMemory; // Buffer insuficiente
+	}
+
+	// Actualizar el tamaño del buffer montado
+	*size_buffer_montar= cbor_encoder_get_buffer_size(&st_encoder->encoder, st_encoder->buffer_montar_rt);
+
+
 	return err;
 }
 
@@ -57,29 +71,30 @@ CborError  cbor_CTI_set_encabezado_encode(
 		ST_CBOR_tipo_tx_encoder *st_encoder)
 {
 	CborError err=0;
+	CborEncoder mapa_raiz;
 
 	//cbor_encoder_init(&st_encoder->encoder, buffer_montar, *size, 0);
 
 	 // Codificar tag
-	err = cbor_encode_tag(&st_encoder->encoder,st_encoder->tag);
+	err = cbor_encode_tag(&st_encoder->array_raiz,st_encoder->tag);
 	if (err != CborNoError) return err;
 
 	// Crear mapa raíz con 3 entradas ("accion", "ID", "datos")
-	err = cbor_encoder_create_map(&st_encoder->array_raiz, &st_encoder->mapa_raiz, CborIndefiniteLength);  //
+	err = cbor_encoder_create_map(&st_encoder->array_raiz, &mapa_raiz, CborIndefiniteLength);  //
 	if (err != CborNoError) return err;
 
 	 // "accion": "R" (por ejemplo)
-	err = cbor_encode_text_stringz(&st_encoder->mapa_raiz, "AC");
+	err = cbor_encode_text_stringz(&mapa_raiz, "AC");
 	if (err != CborNoError) return err;
 
 	// Determinar tipo de acción y codificar
 	switch (st_encoder->accion_tipo) {
-	case CBOR_ACCION_READ:err = cbor_encode_text_stringz(&st_encoder->mapa_raiz,DEF_CBOR_ACCION_READ);break;
-	case CBOR_ACCION_WRITE:err = cbor_encode_text_stringz(&st_encoder->mapa_raiz,DEF_CBOR_ACCION_WRITE);break;
-	case CBOR_ACCION_WRITE_READ:err = cbor_encode_text_stringz(&st_encoder->mapa_raiz,DEF_CBOR_ACCION_WRITE_READ);break;
-	case CBOR_ACCION_RT_READ:err = cbor_encode_text_stringz(&st_encoder->mapa_raiz,DEF_CBOR_ACCION_RT_READ);break;
-	case CBOR_ACCION_RT_WRITE:err = cbor_encode_text_stringz(&st_encoder->mapa_raiz,DEF_CBOR_ACCION_RT_WRITE);break;
-	case CBOR_ACCION_RT_ERROR:err = cbor_encode_text_stringz(&st_encoder->mapa_raiz,DEF_CBOR_ACCION_RT_ERROR);break;
+	case CBOR_ACCION_READ:err = cbor_encode_text_stringz(&mapa_raiz,DEF_CBOR_ACCION_READ);break;
+	case CBOR_ACCION_WRITE:err = cbor_encode_text_stringz(&mapa_raiz,DEF_CBOR_ACCION_WRITE);break;
+	case CBOR_ACCION_WRITE_READ:err = cbor_encode_text_stringz(&mapa_raiz,DEF_CBOR_ACCION_WRITE_READ);break;
+	case CBOR_ACCION_RT_READ:err = cbor_encode_text_stringz(&mapa_raiz,DEF_CBOR_ACCION_RT_READ);break;
+	case CBOR_ACCION_RT_WRITE:err = cbor_encode_text_stringz(&mapa_raiz,DEF_CBOR_ACCION_RT_WRITE);break;
+	case CBOR_ACCION_RT_ERROR:err = cbor_encode_text_stringz(&mapa_raiz,DEF_CBOR_ACCION_RT_ERROR);break;
 	default:
 		return CborErrorIllegalType; // acción no válida
 	}
@@ -87,25 +102,25 @@ CborError  cbor_CTI_set_encabezado_encode(
 
 
 	// "ID": 42 (por ejemplo)
-	err = cbor_encode_text_stringz(&st_encoder->mapa_raiz, "ID");
+	err = cbor_encode_text_stringz(&mapa_raiz, "ID");
 	if (err != CborNoError) return err;
-	err = cbor_encode_int(&st_encoder->mapa_raiz, st_encoder->id);
+	err = cbor_encode_int(&mapa_raiz, st_encoder->id);
 	if (err != CborNoError) return err;
 
 
 	// "DR": 1,2,3 (por ejemplo)
-	err = cbor_encode_text_stringz(&st_encoder->mapa_raiz, "DR");
+	err = cbor_encode_text_stringz(&mapa_raiz, "DR");
 	if (err != CborNoError) return err;
 
 	CborEncoder dr_array;
-	err |= cbor_encoder_create_array(&st_encoder->mapa_raiz, &dr_array, CborIndefiniteLength);
+	err |= cbor_encoder_create_array(&mapa_raiz, &dr_array, CborIndefiniteLength);
 
 	for (size_t i = 0; i < st_encoder->dr_count; ++i)
 	{
 	    err |= cbor_encode_int(&dr_array, st_encoder->dr_array[i]);
 	}
 
-	err |= cbor_encoder_close_container(&st_encoder->mapa_raiz, &dr_array);
+	err |= cbor_encoder_close_container(&mapa_raiz, &dr_array);
 
 
 
@@ -114,48 +129,48 @@ CborError  cbor_CTI_set_encabezado_encode(
 
 	if (st_encoder->fun_STU != NULL)
 	{
-		err |= cbor_encode_text_stringz(&st_encoder->mapa_raiz,DEF_CBOR_CLAVE_PRINCIPAL_STU);
+		err |= cbor_encode_text_stringz(&mapa_raiz,DEF_CBOR_CLAVE_PRINCIPAL_STU);
 		CborEncoder mapa_temp;
-		err |= cbor_encoder_create_map(&st_encoder->mapa_raiz, &mapa_temp,CborIndefiniteLength);
+		err |= cbor_encoder_create_map(&mapa_raiz, &mapa_temp,CborIndefiniteLength);
 		st_encoder->fun_STU(&mapa_temp); // Llamar a la función que codifica los datos en el mapa
-		err |= cbor_encoder_close_container(&st_encoder->mapa_raiz, &mapa_temp);
+		err |= cbor_encoder_close_container(&mapa_raiz, &mapa_temp);
 	}
 
 	//comprobamos si tenemos que rellenar CFG
 	if (st_encoder->fun_CFG != NULL) {
-		err |= cbor_encode_text_stringz(&st_encoder->mapa_raiz,
+		err |= cbor_encode_text_stringz(&mapa_raiz,
 				DEF_CBOR_CLAVE_PRINCIPAL_CFG);
 		CborEncoder mapa_temp;
-		err |= cbor_encoder_create_map(&st_encoder->mapa_raiz, &mapa_temp,
+		err |= cbor_encoder_create_map(&mapa_raiz, &mapa_temp,
 				CborIndefiniteLength);
 		st_encoder->fun_CFG(&mapa_temp); // Llamar a la función que codifica los datos en el mapa
-		err |= cbor_encoder_close_container(&st_encoder->mapa_raiz, &mapa_temp);
+		err |= cbor_encoder_close_container(&mapa_raiz, &mapa_temp);
 	}
 
 	//comprobamos si tenemos que rellenar EVT
 	if (st_encoder->fun_EVT != NULL) {
-		err |= cbor_encode_text_stringz(&st_encoder->mapa_raiz,
+		err |= cbor_encode_text_stringz(&mapa_raiz,
 		DEF_CBOR_CLAVE_PRINCIPAL_EVT);
 		CborEncoder mapa_temp;
-		err |= cbor_encoder_create_map(&st_encoder->mapa_raiz, &mapa_temp,
+		err |= cbor_encoder_create_map(&mapa_raiz, &mapa_temp,
 				CborIndefiniteLength);
 		st_encoder->fun_EVT(&mapa_temp); // Llamar a la función que codifica los datos en el mapa
-		err |= cbor_encoder_close_container(&st_encoder->mapa_raiz, &mapa_temp);
+		err |= cbor_encoder_close_container(&mapa_raiz, &mapa_temp);
 	}
 
 	//comprobamos si tenemos que rellenar ERR
 	if (st_encoder->fun_ERR != NULL) {
-		err |= cbor_encode_text_stringz(&st_encoder->mapa_raiz,
+		err |= cbor_encode_text_stringz(&mapa_raiz,
 		DEF_CBOR_CLAVE_PRINCIPAL_ERR);
 		CborEncoder mapa_temp;
-		err |= cbor_encoder_create_map(&st_encoder->mapa_raiz, &mapa_temp,
+		err |= cbor_encoder_create_map(&mapa_raiz, &mapa_temp,
 				CborIndefiniteLength);
 		st_encoder->fun_ERR(&mapa_temp); // Llamar a la función que codifica los datos en el mapa
-		err |= cbor_encoder_close_container(&st_encoder->mapa_raiz, &mapa_temp);
+		err |= cbor_encoder_close_container(&mapa_raiz, &mapa_temp);
 	}
 
 	// Cerrar el mapa raíz
-	err |= cbor_encoder_close_container(&st_encoder->array_raiz, &st_encoder->mapa_raiz);
+	err |= cbor_encoder_close_container(&st_encoder->array_raiz, &mapa_raiz);
 	if (err != CborNoError) return err;
 	// Finalizar la codificación
 //	if (cbor_encoder_get_buffer_size(&st_encoder->encoder, buffer_montar)> *size) {
@@ -312,21 +327,6 @@ CborError  cbor_CTI_get_encabezado_decode(
 	if (err != CborNoError) return err;
 
 
-//
-//	if (!cbor_value_at_end(map_datos))
-//	{
-//		if (cbor_value_is_text_string(map_datos)) {
-//			char clave[16];
-//			size_t clave_len = sizeof(clave);
-//			CborValue temp = *map_datos;
-//
-//			if (cbor_value_copy_text_string(&temp, clave, &clave_len, NULL) == CborNoError &&
-//				strcmp(clave, "datos") == 0) {
-//				err |= cbor_value_advance(map_datos); // clave "datos"
-//				// aquí el caller puede hacer enter_container(map_datos) si quiere
-//			}
-//		}
-//	}
 
 	return err;  //
 
