@@ -231,12 +231,21 @@ CborError  cbor_CTI_get_encabezado_decode(
 		return CborErrorIllegalType; // No se encontró un tag válido
 	}
 
+
+	if (cbor_value_is_map(&parser_decoder->array_raiz) == 0)
+	{
+		return CborErrorIllegalType; // No se esperaba un mapa aquí
+	}
+
 	// Entrar al mapa raíz
 	err |= cbor_value_enter_container(&parser_decoder->array_raiz, &map_datos);
 
 
 	// Leer "AC"
 	err |= cbor_value_advance(&map_datos); // clave "AC"
+
+	if(!cbor_value_is_text_string(&map_datos))
+		return CborErrorIllegalType; // No se esperaba un mapa aquí
 	accion_len=DEF_CBOR_ACCION_RT_READ_LEN;
 	err |= cbor_value_copy_text_string(&map_datos, accion, &accion_len, &map_datos);
 
@@ -263,7 +272,10 @@ CborError  cbor_CTI_get_encabezado_decode(
 
 
 	// Leer "DR"
-
+	if (cbor_value_is_text_string(&map_datos) == 0) {
+		return CborErrorIllegalType; // No se esperaba una cadena de texto aquí
+	}
+	err |= cbor_value_advance(&map_datos);
 	if (cbor_value_is_array(&map_datos))
 	{
 	    err |= cbor_value_enter_container(&map_datos, &dr_array_it);
@@ -278,6 +290,10 @@ CborError  cbor_CTI_get_encabezado_decode(
 	        err |= cbor_value_advance(&dr_array_it);
 	    }
 	    err |= cbor_value_leave_container(&map_datos, &dr_array_it);
+	}
+	else
+	{
+		return CborErrorIllegalType; // No se esperaba un mapa aquí
 	}
 
 
@@ -294,29 +310,29 @@ CborError  cbor_CTI_get_encabezado_decode(
 	        {
 	            if (strcmp(clave, "CFG") == 0)
 	            {
-	                cbor_value_advance(&map_datos); // saltar clave
+	            	err |=cbor_value_advance(&map_datos); // saltar clave
 	                parser_decoder->map_CFG = map_datos;         // devolver puntero posicionado en el mapa
-	                cbor_value_advance(&map_datos); // saltar valor
+	                err |=cbor_value_advance(&map_datos); // saltar valor
 	                continue;
 	            }
 	            if (strcmp(clave, "EVT") == 0)
 	            {
-	                cbor_value_advance(&map_datos);
+	            	err |=cbor_value_advance(&map_datos);
 	                parser_decoder->map_EVT = map_datos;
-	                cbor_value_advance(&map_datos);
+	                err |=cbor_value_advance(&map_datos);
 	                continue;
 	            }
 	            if (strcmp(clave, "STU") == 0)
 	            {
-	                cbor_value_advance(&map_datos);
+	            	err |=cbor_value_advance(&map_datos);
 	                parser_decoder->map_STU = map_datos;
-	                cbor_value_advance(&map_datos);
+	                err |=cbor_value_advance(&map_datos);
 	                continue;
 	            }
 
 	        }
 	    }
-	    cbor_value_advance(&map_datos); // avanzar por seguridad
+	    err |=cbor_value_advance(&map_datos); // avanzar por seguridad
 	}
 
 
