@@ -348,6 +348,29 @@ CborError  cbor_CTI_get_encabezado_decode(
 
 }
 
+
+CborError  cbor_CTI_value_get_float(
+		const CborValue *value, float *result
+)
+{
+	int64_t valor=0;
+	CborError err=0;
+
+	err=cbor_value_get_int64(value, &valor);
+	*result= (float)valor/1000; // Convertir a float y dividir por 1000;
+
+	return err;  //
+
+}
+
+
+
+CborError cbor_CTI_encode_float(CborEncoder *encoder, float value)
+{
+	int64_t int_value = (int64_t)(value * 1000); // Convertir a entero multiplicando por 1000
+
+	return cbor_encode_int(encoder,int_value);
+}
 /*notas ediciones*-----------------------------------------------------------------
 *
 *  

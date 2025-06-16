@@ -189,6 +189,25 @@ CborError  cbor_CTI_get_encabezado_decode(
 		uint8_t *buffer_rx,size_t size,
 		ST_CBOR_tipo_rx_decoder *parser_decoder
 );
+
+
+
+
+
+
+
+
+
+//funcion para obtener el valor de un float
+CborError  cbor_CTI_value_get_float(
+		const CborValue *value, float *result
+);
+
+
+
+CborError cbor_CTI_encode_float(CborEncoder *encoder, float value);
+
+
 /********************************************************
 //FUNCIONES salida
 *********************************************************/
