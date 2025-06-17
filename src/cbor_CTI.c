@@ -201,7 +201,7 @@ CborError  cbor_CTI_get_encabezado_decode(
 
 	CborValue map_datos;
 	CborValue dr_array_it;
-	uint8_t max_array=parser_decoder->dr_count;
+	//uint8_t max_array=DEF_CBOR_ACCION_RT_WRITE_LEN;
 	parser_decoder->dr_count = 0;
 	if(parser_decoder->parser_iniciado==NO_c)
 	{
@@ -279,10 +279,10 @@ CborError  cbor_CTI_get_encabezado_decode(
 	if (cbor_value_is_array(&map_datos))
 	{
 	    err |= cbor_value_enter_container(&map_datos, &dr_array_it);
-	    while (!cbor_value_at_end(&dr_array_it) && parser_decoder->dr_count < 5) {
+	    while (!cbor_value_at_end(&dr_array_it) && parser_decoder->dr_count < DEF_CBOR_ACCION_RT_WRITE_LEN) {
 	        int val = 0;
 	        err |= cbor_value_get_int(&dr_array_it, &val);
-	        if(parser_decoder->dr_count < max_array)
+	        if(parser_decoder->dr_count < DEF_CBOR_ACCION_RT_WRITE_LEN)
 	        {
 	        	parser_decoder->dr_array[parser_decoder->dr_count] = val;
 	        	(parser_decoder->dr_count)++;
