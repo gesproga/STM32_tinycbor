@@ -95,6 +95,7 @@ CborError  cbor_CTI_set_encabezado_encode(
 	case CBOR_ACCION_RT_READ:err = cbor_encode_text_stringz(&mapa_raiz,DEF_CBOR_ACCION_RT_READ);break;
 	case CBOR_ACCION_RT_WRITE:err = cbor_encode_text_stringz(&mapa_raiz,DEF_CBOR_ACCION_RT_WRITE);break;
 	case CBOR_ACCION_RT_ERROR:err = cbor_encode_text_stringz(&mapa_raiz,DEF_CBOR_ACCION_RT_ERROR);break;
+	case CBOR_ACCION_EVENTO:err = cbor_encode_text_stringz(&mapa_raiz,DEF_CBOR_ACCION_EVENTO);break;
 	default:
 		return CborErrorIllegalType; // acción no válida
 	}

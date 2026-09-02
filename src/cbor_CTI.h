@@ -25,6 +25,7 @@ typedef enum{
 	CBOR_ACCION_RT_READ,
 	CBOR_ACCION_RT_WRITE,
 	CBOR_ACCION_RT_ERROR,
+	CBOR_ACCION_EVENTO,
 
 }EN_CBOR_ACCION;
 
@@ -34,6 +35,7 @@ typedef enum{
 #define DEF_CBOR_ACCION_RT_WRITE "ACK"	//respuesta ACK
 #define DEF_CBOR_ACCION_RT_ERROR "E"	//respuesta ERROR
 #define DEF_CBOR_ACCION_WRITE_READ "WR"	//respuesta ERROR
+#define DEF_CBOR_ACCION_EVENTO "EV"	//evento asincrono
 
 
 
