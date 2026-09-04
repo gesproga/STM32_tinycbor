@@ -133,7 +133,7 @@ CborError  cbor_CTI_set_encabezado_encode(
 		err |= cbor_encode_text_stringz(&mapa_raiz,DEF_CBOR_CLAVE_PRINCIPAL_STU);
 		CborEncoder mapa_temp;
 		err |= cbor_encoder_create_map(&mapa_raiz, &mapa_temp,CborIndefiniteLength);
-		st_encoder->fun_STU(&mapa_temp); // Llamar a la función que codifica los datos en el mapa
+		err |= st_encoder->fun_STU(&mapa_temp); // Llamar a la función que codifica los datos en el mapa
 		err |= cbor_encoder_close_container(&mapa_raiz, &mapa_temp);
 	}
 

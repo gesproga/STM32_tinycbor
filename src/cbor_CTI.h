@@ -91,7 +91,7 @@ typedef struct
 
 	//si configuramos estas funciones, las llamara cuando este montando la trama
 	 void (*fun_CFG)(CborEncoder *mapa_datos); // función para rellenar el mapa
-	 void (*fun_STU)(CborEncoder *mapa_datos); // función para rellenar el mapa
+	 CborError (*fun_STU)(CborEncoder *mapa_datos); // función para rellenar el mapa
 	 void (*fun_EVT)(CborEncoder *mapa_datos); // función para rellenar el mapa
 	 void (*fun_ERR)(CborEncoder *mapa_datos); // función para rellenar el mapa
 
